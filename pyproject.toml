@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codemix-bench"
+version = "0.2.0"
+description = "Benchmark: do assistants adapt to a user's Hindi/Telugu + English code-mixing, address form and stored preferences?"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["pydantic>=2.5"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+serve = ["gunicorn>=22"]
+
+[project.scripts]
+codemix = "codemix_bench.cli:main"
+
+[tool.setuptools]
+packages = ["codemix_bench"]
+
+[tool.setuptools.package-data]
+codemix_bench = ["lexicon_*.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

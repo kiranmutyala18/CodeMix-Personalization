@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CodeMix Persona</title>
+<meta name="description" content="A benchmark asking whether LLMs adapt to how Hindi-English and Telugu-English speakers actually write: language mix, script, and how they address the user.">
+<style>
+:root{
+  --bg:#f6f3ee; --surface:#fffdf9; --ink:#1b1a17; --muted:#5f5b53; --line:#e3ddd2; --line2:#cfc7b8;
+  --accent:#c2410c; --accent-soft:#fde8d9;
+  --hi:#c2410c; --hi-bg:#ffedd5; --te:#0f766e; --te-bg:#d5f5ef; --en:#334155; --en-bg:#e2e8f0;
+  --good:#0f766e; --bad:#b42318; --neutral:#a8a193;
+  --shadow:0 1px 2px rgba(40,30,10,.05),0 8px 24px rgba(40,30,10,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#13120f; --surface:#1c1b17; --ink:#f0ece4; --muted:#aaa598; --line:#312f29; --line2:#46433a;
+    --accent:#f08a54; --accent-soft:#3a2214;
+    --hi:#fdba74; --hi-bg:#4a2410; --te:#5eead4; --te-bg:#0c3b37; --en:#cbd5e1; --en-bg:#2a3340;
+    --good:#5eead4; --bad:#f87171; --neutral:#6f6a5e; --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Noto Sans Devanagari","Noto Sans Telugu",sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+a{color:inherit}
+h1,h2,h3{line-height:1.12;letter-spacing:-.02em;margin:0}
+h2{font-size:clamp(1.55rem,3.4vw,2.1rem);margin-bottom:8px}
+h3{font-size:1.02rem;letter-spacing:-.005em;margin-bottom:6px}
+p{margin:0 0 10px}
+.note{font-size:.9rem;color:var(--muted)}
+.eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);font-weight:600;margin:0 0 14px}
+.hidden-sr{position:absolute;left:-9999px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:20px;height:52px}
+.brand{font-weight:700;letter-spacing:-.01em;text-decoration:none;white-space:nowrap}
+.brand i{font-style:normal;color:var(--accent)}
+.top nav{display:flex;gap:2px;overflow-x:auto;margin-left:auto;scrollbar-width:none}
+.top nav::-webkit-scrollbar{display:none}
+.top nav a{padding:6px 12px;border-radius:999px;text-decoration:none;color:var(--muted);font-size:.9rem;white-space:nowrap}
+.top nav a:hover{background:var(--line);color:var(--ink)}
+
+/* hero */
+.hero{position:relative;overflow:hidden;padding:64px 0 48px;border-bottom:1px solid var(--line);
+  background:radial-gradient(1200px 400px at 85% -10%,var(--accent-soft),transparent 60%),var(--bg)}
+.hero::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--line2) 1px,transparent 1px);background-size:22px 22px;opacity:.5;mask-image:linear-gradient(to bottom,#000,transparent 85%);-webkit-mask-image:linear-gradient(to bottom,#000,transparent 85%)}
+.hero .wrap{position:relative}
+.hero h1{font-size:clamp(2.2rem,6.4vw,4.1rem);max-width:15ch;letter-spacing:-.035em}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.lede{font-size:clamp(1.02rem,2vw,1.2rem);color:var(--muted);max-width:60ch;margin:18px 0 0}
+.scriptStrip{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.scriptStrip span{padding:5px 14px;border-radius:999px;border:1px solid var(--line2);background:var(--surface);font-size:1.05rem}
+.scriptStrip span:nth-child(odd){color:var(--hi)}
+.scriptStrip span:nth-child(even){color:var(--te)}
+.heroStats{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:38px}
+.hs{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px;box-shadow:var(--shadow);animation:rise .6s both}
+.hs:nth-child(2){animation-delay:.08s}.hs:nth-child(3){animation-delay:.16s}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.hs b{display:block;font-size:clamp(1.9rem,4vw,2.5rem);letter-spacing:-.03em;line-height:1.05;font-variant-numeric:tabular-nums}
+.hs b .arrow{color:var(--muted);font-weight:400;margin:0 .15em}
+.hs.good b span:last-child{color:var(--good)}
+.hs.warn b span:last-child{color:var(--bad)}
+.hs small{display:block;color:var(--muted);margin-top:8px;font-size:.88rem;line-height:1.4}
+.hs .verdict{display:inline-block;margin-top:10px;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;padding:2px 8px;border-radius:999px;font-weight:600}
+.hs.good .verdict{background:var(--te-bg);color:var(--good)}
+.hs.warn .verdict{background:var(--accent-soft);color:var(--bad)}
+
+/* sections */
+section.block{padding:64px 0 8px;scroll-margin-top:52px}
+.sub{color:var(--muted);max-width:68ch;margin-bottom:26px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
+.cards2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cards2 + .card, .card + .card{margin-top:16px}
+.cards2 > .card{margin-top:0}
+@media(max-width:760px){.cards2{grid-template-columns:1fr}}
+.banner{display:flex;gap:10px;align-items:flex-start;background:var(--accent-soft);border:1px solid var(--line2);border-radius:12px;padding:12px 14px;font-size:.9rem;margin-bottom:18px}
+.banner b{white-space:nowrap}
+
+/* stacked bars */
+.sbar{display:flex;height:34px;border-radius:8px;overflow:hidden;background:var(--line);margin:6px 0 14px}
+.sbar span{display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:600;color:#fff;min-width:0;transition:width .6s}
+.sbar .good{background:var(--good)} .sbar .mid{background:var(--neutral)} .sbar .bad{background:var(--bad)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sbar span{color:#10100d}}
+.rowlabel{font-size:.82rem;color:var(--muted);display:flex;justify-content:space-between}
+.keys{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted);margin-top:4px}
+.keys i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.big{font-size:2.4rem;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.pbar{height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin:4px 0 14px}
+.pbar span{display:block;height:100%;background:var(--accent);border-radius:5px}
+
+/* svg chart */
+.chartwrap{overflow-x:auto}
+svg.chart{width:100%;min-width:620px;height:auto;display:block}
+svg.chart text{fill:var(--muted);font:11.5px system-ui,sans-serif}
+svg.chart .pid{fill:var(--ink);font-weight:600}
+svg.chart .grp{fill:var(--ink);font-weight:700;font-size:12px;letter-spacing:.04em}
+svg.chart .band{fill:var(--ink)}
+svg.chart .grid{stroke:var(--line2);stroke-dasharray:2 4}
+svg.chart .span{stroke:var(--line2);stroke-width:2;stroke-linecap:round}
+svg.chart .user{fill:var(--surface);stroke:var(--ink);stroke-width:2}
+svg.chart .bare{fill:var(--neutral)}
+svg.chart .prof{fill:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.85rem;color:var(--muted);margin:0 0 6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-2px}
+.legend i.u{background:var(--surface);border:2px solid var(--ink)}
+.legend i.b{background:var(--neutral)} .legend i.p{background:var(--accent)}
+
+.takeaways{margin:22px 0 0;padding:0;list-style:none;display:grid;gap:12px;counter-reset:t}
+.takeaways li{counter-increment:t;position:relative;padding:14px 16px 14px 56px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.takeaways li::before{content:counter(t);position:absolute;left:16px;top:13px;width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;display:grid;place-items:center;font-size:.9rem}
+details.more{margin-top:16px}
+details.more summary{cursor:pointer;color:var(--muted);font-size:.92rem}
+table{border-collapse:collapse;width:100%;font-size:.92rem;margin-top:10px}
+td,th{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+th{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+
+/* analyzer */
+textarea{width:100%;min-height:96px;resize:vertical;padding:14px;border:1px solid var(--line2);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:1.05rem}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
+.btn{border:1px solid var(--line2);background:var(--surface);color:var(--ink);padding:7px 13px;border-radius:999px;font:inherit;font-size:.88rem;cursor:pointer;transition:border-color .15s,background .15s}
+.btn:hover{border-color:var(--accent)}
+.btn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.label{font-size:.74rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:18px 0 8px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:3px 9px;border-radius:7px;font-size:1rem;border-bottom:2px solid transparent}
+.chip.hi{background:var(--hi-bg);color:var(--hi);border-color:var(--hi)}
+.chip.te{background:var(--te-bg);color:var(--te);border-color:var(--te)}
+.chip.en{background:var(--en-bg);color:var(--en);border-color:var(--en)}
+.leg{display:flex;gap:14px;font-size:.82rem;color:var(--muted);margin-top:10px;flex-wrap:wrap}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+.gauge{position:relative;height:16px;border-radius:8px;overflow:hidden;display:flex;margin:22px 0 6px}
+.gauge span{display:block;height:100%}
+.gauge .g1{width:35%;background:var(--hi-bg)} .gauge .g2{width:30%;background:var(--line)} .gauge .g3{width:35%;background:var(--en-bg)}
+.pin{position:absolute;top:-6px;width:4px;height:28px;border-radius:2px;background:var(--ink);transform:translateX(-2px);transition:left .4s}
+.gl{display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted)}
+.gl span:nth-child(2){text-align:center}.gl span:last-child{text-align:right}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
+.stat{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.stat b{display:block;font-size:1.25rem;letter-spacing:-.01em}
+.stat small{color:var(--muted);font-size:.78rem}
+.guide{margin:0;padding-left:1.1rem}
+.guide li{margin:5px 0}
+
+/* replies */
+.sel{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+select{max-width:100%;padding:9px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:.95rem}
+.bubble{background:var(--en-bg);border-radius:16px 16px 16px 4px;padding:12px 16px;display:inline-block;max-width:min(640px,100%);margin:2px 0 4px}
+.meta{font-size:.8rem;color:var(--muted);margin:0 0 4px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+@media(max-width:760px){.compare{grid-template-columns:1fr}}
+.reply{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--bg)}
+.reply.pro{border-color:var(--accent);background:var(--surface)}
+.reply h3{display:flex;align-items:center;gap:8px}
+.reply .txt{white-space:pre-wrap;margin-top:10px;font-size:1.02rem;line-height:1.7}
+.tag{display:inline-block;font-size:.74rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line2);color:var(--muted);margin:0 4px 4px 0}
+.tag.ok{border-color:var(--good);color:var(--good)} .tag.no{border-color:var(--bad);color:var(--bad)}
+
+/* benchmark */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.pcard{border-top:4px solid var(--hi)} .pcard.te{border-top-color:var(--te)}
+.pcard h3 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--hi);margin-right:8px}
+.pcard.te h3 .dot{background:var(--te)}
+.quote{background:var(--bg);border-radius:12px 12px 12px 3px;padding:7px 11px;margin:6px 0;font-size:.92rem;border:1px solid var(--line)}
+.facts{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.facts span{font-size:.78rem;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--ink)}
+.filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.scn h3{margin-bottom:4px}
+
+/* method */
+.flow{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin:6px 0 22px}
+.step{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;position:relative}
+.step b{display:block;font-size:.76rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:4px}
+.step span{font-size:.9rem;color:var(--muted)}
+.step:not(:last-child)::after{content:"→";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:var(--line2);font-size:1.1rem;z-index:1}
+@media(max-width:700px){.step:not(:last-child)::after{display:none}}
+footer{padding:56px 0 64px;color:var(--muted);font-size:.88rem}
+</style>
+</head>
+<body>
+
+<div class="top"><div class="wrap">
+  <a class="brand" href="#top">CodeMix<i>·</i>Persona</a>
+  <nav aria-label="Sections">
+    <a href="#findings">Findings</a><a href="#analyzer">Try it</a><a href="#replies">Replies</a><a href="#benchmark">Benchmark</a><a href="#method">Method</a>
+  </nav>
+</div></div>
+
+<header class="hero" id="top"><div class="wrap">
+  <p class="eyebrow">Benchmark in progress · Hindi + English · Telugu + English</p>
+  <h1>Does your AI talk like <em>you</em>, or like everyone?</h1>
+  <p class="lede">Millions of people write in a blend: romanized Hindi, Telugu in its own script, English nouns dropped into the middle of a sentence, a different &ldquo;you&rdquo; for a friend than for a grandfather. CodeMix Persona measures whether language models notice, and whether telling them who the user is makes a difference.</p>
+  <div class="scriptStrip" aria-hidden="true"><span>आप</span><span>మీరు</span><span>तुम</span><span>నువ్వు</span><span>तू</span><span>తెలుగు</span><span>हिन्दी</span></div>
+  <div class="heroStats" id="heroStats"></div>
+</div></header>
+
+<main class="wrap">
+
+<section class="block" id="findings">
+  <p class="eyebrow">First results</p>
+  <h2>A profile fixes how it addresses you. Not how it mixes.</h2>
+  <p class="sub" id="resSetup"></p>
+  <div class="banner"><b>Early look.</b><span>One model family, one reply per prompt, scored automatically, no human validation yet. Details under <a href="#method">Method</a>.</span></div>
+
+  <div class="cards2">
+    <div class="card">
+      <h3>How does it address the user?</h3>
+      <p class="note">Right form for the person (aap, tum, tu, meeru, nuvvu), across <span id="addrN"></span> prompts.</p>
+      <div id="addrBars"></div>
+      <div class="keys"><span><i style="background:var(--good)"></i>matches the user</span><span><i style="background:var(--neutral)"></i>mixed / none found</span><span><i style="background:var(--bad)"></i>wrong form</span></div>
+    </div>
+    <div class="card">
+      <h3>Does a native-script user get their script?</h3>
+      <p class="note">Prompts from Telugu-script and Devanagari-script users (<span id="natN"></span>).</p>
+      <div id="scriptBars"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>Where does the reply sit on the English&ndash;native scale?</h3>
+    <p class="note">Each row is one persona, averaged over 4 scenarios. If the model matched the user, the filled dots would sit on the ring.</p>
+    <div class="legend"><span><i class="u"></i>the user's own messages</span><span><i class="b"></i>reply without a profile</span><span><i class="p"></i>reply with a profile</span></div>
+    <div class="chartwrap" id="mixChart"></div>
+    <p class="note" id="mixNote" style="margin-top:10px"></p>
+  </div>
+
+  <ol class="takeaways" id="resNotes"></ol>
+
+  <details class="more"><summary>Full metrics table</summary>
+    <div style="overflow-x:auto"><table id="resTable"></table></div>
+  </details>
+</section>
+
+<section class="block" id="analyzer">
+  <p class="eyebrow">Try it</p>
+  <h2>See how a message is mixed</h2>
+  <p class="sub">Paste a message in romanized or native script. The analyzer tags each word, estimates the mix, and says what a well-adapted reply should do. It runs entirely in your browser.</p>
+  <div class="card">
+    <label for="inp" class="hidden-sr">Message</label>
+    <textarea id="inp" placeholder="e.g. Bro assignment kal submit karna hai aur kuch samajh nahi aa raha"></textarea>
+    <div class="row" id="examples"></div>
+    <div id="result" aria-live="polite" style="margin-top:6px"></div>
+  </div>
+</section>
+
+<section class="block" id="replies">
+  <p class="eyebrow">Read the replies</p>
+  <h2>Same message, with and without a profile</h2>
+  <p class="sub">Pick a user and a task. The left reply saw only the message. The right one also knew the user's background, how they write, and a few facts about them.</p>
+  <div class="card">
+    <div class="sel">
+      <label for="cellPersona" class="hidden-sr">Persona</label><select id="cellPersona"></select>
+      <label for="cellScenario" class="hidden-sr">Scenario</label><select id="cellScenario"></select>
+    </div>
+    <div id="cellOut"></div>
+  </div>
+</section>
+
+<section class="block" id="benchmark">
+  <p class="eyebrow">The benchmark</p>
+  <h2>8 personas, 8 scenarios</h2>
+  <p class="sub">Personas vary in language pair, how much English they mix (level 1 = mostly native, 3 = mostly English), script, formality, and how they address the assistant. Each also carries stable facts a memory-aware assistant should use. Scenarios are everyday tasks written for both languages.</p>
+  <div class="filters" role="group" aria-label="Filter personas">
+    <button class="btn" data-f="all" aria-pressed="true">All</button>
+    <button class="btn" data-f="hi-en" aria-pressed="false">Hindi + English</button>
+    <button class="btn" data-f="te-en" aria-pressed="false">Telugu + English</button>
+  </div>
+  <div class="grid" id="personaGrid"></div>
+  <h3 style="margin:34px 0 12px;font-size:1.2rem">Scenarios</h3>
+  <p class="note">Four of these (recipe, message to an elder, concept explanation, weekend plan) are in the first results.</p>
+  <div class="grid" id="scenarioGrid"></div>
+</section>
+
+<section class="block" id="method">
+  <p class="eyebrow">Method</p>
+  <h2>How it works, and where it's weak</h2>
+  <div class="flow">
+    <div class="step"><b>1 · Prompts</b><span>8 personas × 4 scenarios, same message for every persona of a language pair</span></div>
+    <div class="step"><b>2 · Two conditions</b><span>Bare, or with the user's profile and stored facts</span></div>
+    <div class="step"><b>3 · Replies</b><span>Independent Claude runs, one reply per prompt, cached</span></div>
+    <div class="step"><b>4 · Scoring</b><span>Pair, script, mix, address form, elder honorifics, stored facts</span></div>
+  </div>
+  <div class="cards2">
+    <div class="card">
+      <h3>Research questions</h3>
+      <ol class="guide">
+        <li>How well do LLMs match a user's code-mixing level, script, and address form?</li>
+        <li>Does memory (diet, family, region) improve cultural and preference fit?</li>
+        <li>Does an LLM judge agree with native-speaker ratings on these dimensions?</li>
+      </ol>
+      <h3 style="margin-top:18px">Status</h3>
+      <p class="note">Done: personas, scenarios, analyzer, first response collection with automatic scoring. Next: more models, human ratings, an LLM judge, native-speaker review of the seed text.</p>
+    </div>
+    <div class="card">
+      <h3>Rubric (7 dimensions)</h3>
+      <table style="margin-top:0">
+        <tr><td>Language match</td><td>Right language pair, not pure English or pure native</td></tr>
+        <tr><td>Mix level</td><td>Code-mixing density close to the user's</td></tr>
+        <tr><td>Script</td><td>Same script or romanization</td></tr>
+        <tr><td>Address form</td><td>aap / tum / tu, meeru / nuvvu</td></tr>
+        <tr><td>Cultural fit</td><td>Food, festivals, norms</td></tr>
+        <tr><td>Preference use</td><td>Uses stored facts when relevant</td></tr>
+        <tr><td>Helpfulness</td><td>Does the task well</td></tr>
+      </table>
+      <p class="note" style="margin-top:10px">The first results score the first five automatically; the rest need human or judge ratings.</p>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Read this before quoting any number</h3>
+    <ul class="guide note">
+      <li>One model family, one reply per prompt, no human validation. Treat the numbers as a first look, not findings.</li>
+      <li>The bare condition has only 8 distinct replies (4 scenarios × 2 language pairs), reused across the 4 personas of each pair. Cells are not independent, and the sample is small.</li>
+      <li>English share comes from a dictionary-based word tagger. Names and unusual spellings count as the user's native language, which adds noise.</li>
+      <li>Each persona's target English share is measured from only two short sample messages.</li>
+      <li>The persona and scenario text is a first draft, pending native-speaker review. Romanized Hindi and Telugu have no standard spelling.</li>
+      <li>The live analyzer above uses small hand-built word lists, so rare words count as English. The results use a stronger scorer with an English dictionary.</li>
+    </ul>
+    <p class="note" style="margin-top:10px">Code-mixing index follows Das &amp; Gambäck (2014): CMI = 100 × (1 − dominant-language tokens ÷ tokens).</p>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap">CodeMix Persona · a benchmark in progress. Runs entirely in your browser; nothing you type is sent anywhere.</div></footer>
+
+<script>
+const DATA = /*DATA*/;
+
+// ---------- word lists (romanized) ----------
+const HI = new Set(`/*LEX_HI*/`.split(/\s+/));
+// removed ambiguous English words on purpose: is, to, do, me, so, the
+
+const TE = new Set(`/*LEX_TE*/`.split(/\s+/));
+
+const ADDR = [
+  {form:"aap", re:/\b(aap|aapko|aapka|aapki|kijiye|dijiye|bataiye|sakte hain)\b/i, pair:"hi-en", reg:"respectful"},
+  {form:"tum", re:/\b(tum|tumhe|tumhara|tumhari|karo|batao|bolo|do na)\b/i, pair:"hi-en", reg:"familiar"},
+  {form:"tu", re:/\b(tu|tujhe|tera|teri|bata na|de na)\b/i, pair:"hi-en", reg:"very casual"},
+  {form:"meeru", re:/\b(meeru|mee|cheppandi|cheyyandi|vellandi|cheyyagalara)\b/i, pair:"te-en", reg:"respectful"},
+  {form:"nuvvu", re:/\b(nuvvu|nee|cheyyi|cheppu|chedam|cheddam|ra|raa)\b/i, pair:"te-en", reg:"familiar"}
+];
+
+const EXAMPLES = [
+  ["Hindi-English, casual", "Yaar assignment kal submit karna hai aur kuch samajh nahi aa raha."],
+  ["Hindi-English, formal", "Kya aap mujhe quarterly review ke liye ek short agenda suggest kar sakte hain?"],
+  ["Hindi, Devanagari", "मुझे अपने बेटे के लिए एक अच्छा laptop चाहिए, budget 50 हज़ार है।"],
+  ["Telugu-English, casual", "Bro ee weekend Vizag beach plan chedam, em cheyyali?"],
+  ["Telugu, native script", "నాకు ఈ phone లో WhatsApp ఎలా use చేయాలో కొంచెం చెప్పండి."],
+  ["Plain English", "Can you help me write a short email to my manager about leave next week?"]
+];
+
+const PAIRNAME = {"hi-en":"Hindi + English","te-en":"Telugu + English"};
+const LEVELS = {1:"mostly native language, English for nouns and tech terms", 2:"a balanced mix", 3:"mostly English with native-language glue words"};
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+const $ = id => document.getElementById(id);
+
+// ---------- analysis ----------
+function scriptOf(w){
+  if(/[ऀ-ॿ]/.test(w)) return "deva";
+  if(/[ఀ-౿]/.test(w)) return "tel";
+  return "latin";
+}
+function analyze(text){
+  const words = text.match(/[\p{L}\p{M}']+/gu) || [];
+  const toks = words.map(w=>{
+    const s = scriptOf(w), lw = w.toLowerCase().replace(/'/g,"");
+    let lang;
+    if(s==="deva") lang="hi";
+    else if(s==="tel") lang="te";
+    else if(HI.has(lw) && !TE.has(lw)) lang="hi";
+    else if(TE.has(lw) && !HI.has(lw)) lang="te";
+    else if(HI.has(lw) && TE.has(lw)) lang="amb";
+    else lang="en";
+    return {w, s, lang};
+  });
+  const counts = {hi:0, te:0, en:0, amb:0};
+  toks.forEach(t=>counts[t.lang]++);
+  const n = toks.length;
+  const nativeLang = counts.te>counts.hi ? "te" : (counts.hi>0 ? "hi" : null);
+  let pair = null;
+  if(nativeLang==="hi") pair="hi-en";
+  if(nativeLang==="te") pair="te-en";
+  if(counts.amb){
+    const to = nativeLang || "en";
+    toks.forEach(t=>{ if(t.lang==="amb") t.lang = to; });
+    counts[to] += counts.amb; counts.amb = 0;
+  }
+  const nat = counts.hi + counts.te;
+  const enShare = n ? counts.en / n : 0;
+  const dom = Math.max(nat, counts.en);
+  const cmi = n && nat>0 && counts.en>0 ? Math.round(100*(1 - dom/n)) : 0;
+  const level = n===0 ? null : (enShare<0.35 ? 1 : enShare<=0.65 ? 2 : 3);
+  const sc = {deva:0, tel:0, latin:0}; toks.forEach(t=>sc[t.s]++);
+  let scriptLabel = "Roman";
+  if(sc.deva>0 || sc.tel>0) scriptLabel = (sc.latin>0 ? "Native + Latin" : "Native script");
+  const addr = ADDR.filter(a=>(!pair || a.pair===pair) && a.re.test(text));
+  return {toks, counts, n, enShare, cmi, level, pair, scriptLabel, addr, sc};
+}
+function matchPersona(a){
+  if(!a.pair || a.n<2) return null;
+  const native = a.sc.deva+a.sc.tel > 0;
+  let best=null, bestScore=-1;
+  DATA.personas.filter(p=>p.lang_pair===a.pair).forEach(p=>{
+    let s = 3 - Math.abs(p.mix_level - a.level);
+    s += (p.script==="native_mixed")===native ? 2 : 0;
+    if(a.addr.length && a.addr.some(x=>x.form===p.address_form)) s += 2;
+    if(s>bestScore){bestScore=s; best=p;}
+  });
+  return best;
+}
+
+function render(){
+  const text = $("inp").value.trim();
+  const el = $("result");
+  if(!text){ el.innerHTML = '<p class="note" style="margin:14px 0 0">Enter a message or pick an example.</p>'; return; }
+  const a = analyze(text);
+  if(a.n===0){ el.innerHTML = '<p class="note" style="margin:14px 0 0">No words found.</p>'; return; }
+  const nativeName = a.pair==="te-en" ? "Telugu" : "Hindi";
+  const chips = a.toks.map(t=>`<span class="chip ${t.lang}">${esc(t.w)}</span>`).join("");
+  const mp = matchPersona(a);
+  const tips = [];
+  if(!a.pair){
+    tips.push("No Hindi or Telugu detected. A reply in plain English would match this message.");
+  } else {
+    tips.push(`Reply in ${PAIRNAME[a.pair]}, not pure English or pure ${nativeName}.`);
+    tips.push(`Keep the mix close to the user's: ${LEVELS[a.level]}.`);
+    tips.push(a.scriptLabel==="Roman" ? "Write in the same romanized style the user uses. Do not switch to native script." : "Use the same script convention: native script, with English words in Latin letters.");
+    tips.push(a.addr.length ? `The user's address form looks like “${a.addr[0].form}” (${a.addr[0].reg}). Mirror that register.` : "No clear pronoun or honorific found, so the address form is unknown. A good reply picks a neutral form or asks.");
+  }
+  el.innerHTML = `
+    <div class="label">Word by word</div>
+    <div class="chips">${chips}</div>
+    <div class="leg"><span><i style="background:var(--hi)"></i>Hindi</span><span><i style="background:var(--te)"></i>Telugu</span><span><i style="background:var(--en)"></i>English / other</span></div>
+    <div class="label">English share</div>
+    <div class="gauge" role="img" aria-label="English share ${Math.round(a.enShare*100)} percent">
+      <span class="g1"></span><span class="g2"></span><span class="g3"></span>
+      <div class="pin" style="left:${Math.min(99,Math.max(1,a.enShare*100))}%"></div>
+    </div>
+    <div class="gl"><span>Level 1 · mostly native</span><span>Level 2 · balanced</span><span>Level 3 · mostly English</span></div>
+    <div class="stats">
+      <div class="stat"><small>Language pair</small><b>${a.pair?PAIRNAME[a.pair]:"English only"}</b></div>
+      <div class="stat"><small>English share</small><b>${Math.round(a.enShare*100)}%</b></div>
+      <div class="stat"><small>Code-mixing index</small><b>${a.cmi}</b></div>
+      <div class="stat"><small>Script</small><b>${a.scriptLabel}</b></div>
+      <div class="stat"><small>Mix level</small><b>${a.pair?a.level:"–"}</b></div>
+      <div class="stat"><small>Address form</small><b>${a.addr.length?a.addr[0].form:"unclear"}</b></div>
+    </div>
+    <div class="label">What a well-adapted reply should do</div>
+    <ul class="guide">${tips.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>
+    ${mp?`<div class="label">Closest benchmark persona</div>
+      <p style="margin:0"><b>${mp.id}</b> · ${esc(mp.occupation)}, ${esc(mp.region)}. Mix level ${mp.mix_level}, ${mp.script==="roman"?"romanized":"native script"}, address form “${esc(mp.address_form)}”.</p>`:""}
+  `;
+}
+
+// ---------- examples ----------
+EXAMPLES.forEach(([label,text])=>{
+  const b = document.createElement("button");
+  b.className="btn"; b.type="button"; b.textContent=label;
+  b.addEventListener("click",()=>{$("inp").value=text; render();});
+  $("examples").appendChild(b);
+});
+$("inp").addEventListener("input", render);
+
+// ---------- personas ----------
+let pairFilter = "all";
+function renderPersonas(){
+  $("personaGrid").innerHTML = DATA.personas.filter(p=>pairFilter==="all"||p.lang_pair===pairFilter).map(p=>`
+    <article class="card pcard ${p.lang_pair==="te-en"?"te":""}">
+      <h3><span class="dot"></span>${p.id} · ${esc(p.occupation)}</h3>
+      <div><span class="tag">${PAIRNAME[p.lang_pair]}</span><span class="tag">mix level ${p.mix_level}</span><span class="tag">${p.script==="roman"?"romanized":"native script"}</span><span class="tag">${esc(p.address_form)}</span></div>
+      <p class="note" style="margin:4px 0 6px">${p.age}, ${esc(p.region)}</p>
+      ${p.sample_utterances.map(u=>`<div class="quote">${esc(u)}</div>`).join("")}
+      <div class="facts">${p.memory_facts.map(m=>`<span>${esc(m)}</span>`).join("")}</div>
+    </article>`).join("");
+}
+document.querySelectorAll(".filters .btn").forEach(b=>b.addEventListener("click",()=>{
+  pairFilter = b.dataset.f;
+  document.querySelectorAll(".filters .btn").forEach(x=>x.setAttribute("aria-pressed", x===b));
+  renderPersonas();
+}));
+
+// ---------- scenarios ----------
+const RUN = new Set((DATA.results && DATA.results.scenarios) || []);
+$("scenarioGrid").innerHTML = DATA.scenarios.map(s=>`
+  <article class="card scn">
+    <h3>${esc(s.domain)} ${RUN.has(s.id)?'<span class="tag ok">in first results</span>':""}</h3>
+    <p class="note">${esc(s.description)}</p>
+    <div class="quote">${esc(s.seed_messages["hi-en"])}</div>
+    <div class="quote">${esc(s.seed_messages["te-en"])}</div>
+    <div>${s.needs_memory?'<span class="tag">needs memory</span>':""}</div>
+  </article>`).join("");
+
+// ---------- results ----------
+const pts = x => Math.round(x*100);
+function sbar(parts, total){
+  return `<div class="sbar" role="img">${parts.map(([cls,n,label])=>n?`<span class="${cls}" style="width:${100*n/total}%" title="${label}: ${n}">${n}</span>`:"").join("")}</div>`;
+}
+function renderResults(){
+  const R = DATA.results;
+  if(!R){ document.querySelectorAll("#findings, .top nav a[href='#findings']").forEach(e=>e.remove()); return; }
+  const B = R.summary.bare.all, P = R.summary.profile.all;
+  const SCN = Object.fromEntries(DATA.scenarios.map(s=>[s.id, s.domain]));
+  const nativeIds = new Set(DATA.personas.filter(p=>p.script==="native_mixed").map(p=>p.id));
+  const nat = R.cells.filter(c=>nativeIds.has(c.persona));
+  const rom = R.cells.filter(c=>!nativeIds.has(c.persona));
+  const natB = nat.filter(c=>c.bare.script_ok).length, natP = nat.filter(c=>c.profile.script_ok).length;
+
+  $("resSetup").textContent =
+    `${B.cells} prompts per condition: 8 personas × ${R.scenarios.length} tasks (${R.scenarios.map(s=>SCN[s]).join(", ")}). ` +
+    `Without a profile the model sees only the user's message. With one, it also gets the user's background, address form, example messages, and stored facts.`;
+
+  // hero stats
+  $("heroStats").innerHTML = `
+    <div class="hs good"><b><span>${B.address_mismatch}</span><span class="arrow">→</span><span>${P.address_mismatch}</span></b>
+      <small>wrong address forms, out of ${B.address_n} replies</small><span class="verdict">fixed by a profile</span></div>
+    <div class="hs good"><b><span>${natB}/${nat.length}</span><span class="arrow">→</span><span>${natP}/${nat.length}</span></b>
+      <small>native-script users answered in their own script</small><span class="verdict">fixed by a profile</span></div>
+    <div class="hs warn"><b><span>${pts(B.mix_gap_mean)}</span><span class="arrow">→</span><span>${pts(P.mix_gap_mean)}</span></b>
+      <small>points: average gap between the reply's English share and the user's</small><span class="verdict">not fixed</span></div>`;
+
+  // address bars
+  $("addrN").textContent = B.address_n;
+  const mixB = B.address_mixed + B.address_unclear, mixP = P.address_mixed + P.address_unclear;
+  $("addrBars").innerHTML =
+    `<div class="rowlabel"><span>Without a profile</span><span>${B.address_match} of ${B.address_n} right</span></div>` +
+    sbar([["good",B.address_match,"matches"],["mid",mixB,"mixed / none found"],["bad",B.address_mismatch,"wrong form"]], B.address_n) +
+    `<div class="rowlabel"><span>With a profile</span><span>${P.address_match} of ${P.address_n} right</span></div>` +
+    sbar([["good",P.address_match,"matches"],["mid",mixP,"mixed / none found"],["bad",P.address_mismatch,"wrong form"]], P.address_n);
+
+  // script bars
+  $("natN").textContent = `${nat.length} prompts`;
+  $("scriptBars").innerHTML =
+    `<div class="rowlabel"><span>Without a profile</span><span>${natB} of ${nat.length}</span></div><div class="pbar"><span style="width:${100*natB/nat.length}%"></span></div>` +
+    `<div class="rowlabel"><span>With a profile</span><span>${natP} of ${nat.length}</span></div><div class="pbar"><span style="width:${100*natP/nat.length}%"></span></div>` +
+    `<p class="note" style="margin:0">The cost: romanized users got romanized replies ${rom.filter(c=>c.bare.script_ok).length} of ${rom.length} times without a profile and ${rom.filter(c=>c.profile.script_ok).length} of ${rom.length} with one.</p>`;
+
+  mixChart(R);
+
+  // takeaways
+  const lvl = Object.fromEntries(DATA.personas.map(p=>[p.id,p.mix_level]));
+  const hv = R.cells.filter(c=>lvl[c.persona]===3);
+  const avg = k => hv.reduce((a,c)=>a+c[k].mix_bias,0)/hv.length;
+  $("resNotes").innerHTML = [
+    `<b>Address form is the clearest win.</b> Without a profile, ${B.address_mismatch} of ${B.address_n} replies used the wrong form for the user; with one, ${P.address_mismatch}. The other ${P.address_unclear} replies had no address form my detector could find.`,
+    `<b>Mixing level is not fixed by a profile.</b> The average gap to the user's English share barely moves (${pts(B.mix_gap_mean)} → ${pts(P.mix_gap_mean)} points). For English-heavy users, replies carry about ${Math.abs(pts(avg("bare")))} points too little English without a profile and ${Math.abs(pts(avg("profile")))} with one. The model leans toward the native language instead of copying the user's balance.`,
+    `<b>Stored facts mostly held.</b> ${B.violations} of ${B.violation_n} constraint prompts broke a stored fact without a profile (a Jain user got onion and garlic) and ${P.violations} with one. That sample is too small to generalize from.`
+  ].map(t=>`<li>${t}</li>`).join("");
+
+  // full table
+  const sg = x => (x>0?"+":x<0?"−":"") + Math.abs(pts(x));
+  const rows = [
+    ["Replies in the right language pair", `${B.pair_ok}/${B.cells}`, `${P.pair_ok}/${P.cells}`],
+    ["Script matches the user's", `${B.script_ok}/${B.cells}`, `${P.script_ok}/${P.cells}`],
+    [`Address form matches (${B.address_n} prompts, elder task excluded)`, B.address_match, P.address_match],
+    ["Wrong address form", B.address_mismatch, P.address_mismatch],
+    ["Mixed or no address form found", mixB, mixP],
+    ["Respectful draft to an elder", `${B.elder_ok}/${B.elder_n}`, `${P.elder_ok}/${P.elder_n}`],
+    ["Stored constraint respected", `${B.violation_n-B.violations}/${B.violation_n}`, `${P.violation_n-P.violations}/${P.violation_n}`],
+    ["Mix level matches the user's", `${B.mix_level_ok}/${B.cells}`, `${P.mix_level_ok}/${P.cells}`],
+    ["English share: average gap (points)", pts(B.mix_gap_mean), pts(P.mix_gap_mean)],
+    ["English share: average direction (points, − = too little English)", sg(B.mix_bias_mean), sg(P.mix_bias_mean)]
+  ];
+  $("resTable").innerHTML = "<tr><th>Metric</th><th>Bare</th><th>With profile</th></tr>" +
+    rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><b>${r[2]}</b></td></tr>`).join("");
+
+  // reply explorer
+  const ps = $("cellPersona"), ss = $("cellScenario");
+  ps.innerHTML = DATA.personas.map(p=>`<option value="${p.id}">${p.id} · ${esc(p.occupation)} (${p.lang_pair})</option>`).join("");
+  ss.innerHTML = R.scenarios.map(s=>`<option value="${s}">${esc(SCN[s])}</option>`).join("");
+  ps.value = "te03"; ss.value = "s03_message_to_elder";
+  const show = () => {
+    const c = R.cells.find(x=>x.persona===ps.value && x.scenario===ss.value);
+    const p = DATA.personas.find(x=>x.id===ps.value);
+    const tag = (ok,yes,no) => `<span class="tag ${ok?"ok":"no"}">${ok?yes:no}</span>`;
+    const chips = m => [
+      tag(m.script_ok,"script matches","script differs"),
+      `<span class="tag">English ${pts(m.en_share)}% · user ${pts(c.target_en)}%</span>`,
+      m.address?(m.address==="match"?tag(true,"address form right",""):m.address==="mismatch"?tag(false,"","wrong address form"):`<span class="tag">address: ${m.address}</span>`):"",
+      m.elder_ok!==undefined?tag(m.elder_ok,"respectful to elder","not respectful"):"",
+      m.violation!==undefined?tag(!m.violation,"stored fact kept","broke a stored fact"):""
+    ].join("");
+    const box = (title, cls, m) => `<div class="reply ${cls}"><h3>${title}</h3><div>${chips(m)}</div><div class="txt">${esc(m.response)}</div></div>`;
+    $("cellOut").innerHTML =
+      `<p class="meta">${esc(p.occupation)}, ${esc(p.region)} · addresses the assistant as “${esc(p.address_form)}” · ${p.script==="roman"?"writes romanized":"writes in native script"}</p>` +
+      `<div class="bubble">${esc(c.user)}</div>` +
+      `<div class="compare">${box("Without a profile","",c.bare)}${box("With a profile","pro",c.profile)}</div>`;
+  };
+  ps.addEventListener("change", show); ss.addEventListener("change", show);
+  show();
+}
+
+// ---------- mix-balance chart (inline SVG) ----------
+function mixChart(R){
+  const W=780, left=200, right=26, top=50, rowH=36, grpH=30, bottom=58;
+  const plotW = W-left-right, X = v => left + plotW*v;
+  const groups = ["te-en","hi-en"].map(pair=>({pair, personas:DATA.personas.filter(p=>p.lang_pair===pair)}));
+  const mean = a => a.reduce((s,x)=>s+x,0)/a.length;
+  let y = top, body = "", firstY = top;
+  groups.forEach(g=>{
+    body += `<text class="grp" x="8" y="${y+18}">${PAIRNAME[g.pair].toUpperCase()}</text>`;
+    y += grpH;
+    g.personas.forEach(p=>{
+      const cells = R.cells.filter(c=>c.persona===p.id);
+      const u = cells[0].target_en, b = mean(cells.map(c=>c.bare.en_share)), f = mean(cells.map(c=>c.profile.en_share));
+      const cy = y + rowH/2;
+      const lo = Math.min(u,b,f), hi = Math.max(u,b,f);
+      const occ = p.occupation.replace(/^(final-year|first-year) /,"");
+      const short = occ.length>22 ? occ.slice(0,21)+"…" : occ;
+      body += `<text class="pid" x="8" y="${cy-1}">${p.id}</text><text x="44" y="${cy-1}">${esc(short)}</text>` +
+        `<text x="8" y="${cy+12}" style="font-size:10.5px">level ${p.mix_level} · ${p.script==="roman"?"romanized":"native script"}</text>` +
+        `<line class="span" x1="${X(lo)}" x2="${X(hi)}" y1="${cy}" y2="${cy}"/>` +
+        `<circle class="bare" cx="${X(b)}" cy="${cy}" r="5.5"><title>${p.id} without profile: ${pts(b)}% English</title></circle>` +
+        `<circle class="prof" cx="${X(f)}" cy="${cy}" r="5.5"><title>${p.id} with profile: ${pts(f)}% English</title></circle>` +
+        `<circle class="user" cx="${X(u)}" cy="${cy}" r="6.5"><title>${p.id} own messages: ${pts(u)}% English</title></circle>`;
+      y += rowH;
+    });
+  });
+  const H = y + bottom, bandTop = top-8, bandBot = y+4;
+  const bands = [[0,.35,"Level 1 · mostly native",.05],[.35,.65,"Level 2 · balanced",.0],[.65,1,"Level 3 · mostly English",.05]]
+    .map(([a,b,l,o])=>`<rect class="band" x="${X(a)}" y="${bandTop}" width="${X(b)-X(a)}" height="${bandBot-bandTop}" opacity="${o}"/><text x="${(X(a)+X(b))/2}" y="${top-18}" text-anchor="middle">${l}</text>`).join("");
+  const ticks = [0,.25,.5,.75,1].map(t=>`<line class="grid" x1="${X(t)}" x2="${X(t)}" y1="${bandTop}" y2="${bandBot}"/><text x="${X(t)}" y="${bandBot+18}" text-anchor="middle">${t*100}%</text>`).join("");
+  $("mixChart").innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Per-persona English share of the user's messages versus replies with and without a profile">${bands}${ticks}${body}<text x="${X(.5)}" y="${H-8}" text-anchor="middle">English share of the text</text></svg>`;
+
+  const lvl = Object.fromEntries(DATA.personas.map(p=>[p.id,p.mix_level]));
+  const hv = R.cells.filter(c=>lvl[c.persona]===3);
+  const hb = mean(hv.map(c=>c.profile.en_share)), hu = mean(hv.map(c=>c.target_en));
+  $("mixNote").textContent = `The three level-3 personas write about ${pts(hu)}% English on average. Even with a profile, replies to them are about ${pts(hb)}% English.`;
+}
+
+renderPersonas();
+renderResults();
+$("inp").value = EXAMPLES[0][1];
+render();
+</script>
+</body>
+</html>
